@@ -1,0 +1,48 @@
+# Copy to config.yaml and edit.
+poll_interval_seconds: 120
+
+streamers:
+  - platform: twitch
+    channel: some_twitch_login        # the name in twitch.tv/<login>
+  - platform: youtube
+    channel: "@SomeHandle"            # @handle or UC... channel id
+    name: SomeHandle
+  - platform: kick
+    channel: some-kick-slug           # the name in kick.com/<slug>
+    # kick_chatroom_id: 123456        # set if the automatic chatroom lookup is blocked
+
+recording:
+  dir: data/recordings
+  segment_seconds: 600                # 10-minute chunks
+  quality: best                       # or 1080p60, 720p60, 720p ...
+  streamlink_args: ["--twitch-disable-ads"]
+  retention_hours: 24                 # raw chunks are deleted after this; clips are kept
+
+clips:
+  dir: data/clips
+  pre_roll_seconds: 40                # clip starts this long before the hype moment
+  post_roll_seconds: 20               # and ends this long after it
+  threshold: 3.5                      # lower = more clips, higher = fewer
+  cooldown_seconds: 90                # minimum gap between two clips of the same stream
+  min_baseline_seconds: 180           # no clips in the first 3 minutes of a recording
+  baseline_window_seconds: 600        # "normal" activity = trailing 10 minutes
+  chat_window_seconds: 10
+  chat_weight: 0.6
+  audio_weight: 0.4
+  min_chat_messages: 0
+  keyword_weight: 1.0                 # extra weight for messages containing a hype keyword
+  # keywords: [pog, kekw, lul, clip it, ...]   # defaults are built in
+  vertical: false                     # true = crop to 9:16 (1080x1920) for Shorts/TikTok/Reels
+  youtube_chat_min_interval: 30       # seconds between YouTube chat polls (5 quota units each)
+
+discord:
+  notify_channel_id: 0                # right-click channel -> Copy Channel ID (needs Developer Mode)
+  approval_channel_id: 0
+  mention_user_id: null               # your user id, to get pinged on go-live
+  approver_ids: []                    # user ids allowed to approve; empty = anyone in the channel
+  upload_limit_mb: 9.5                # Discord upload limit for previews (raise for boosted servers)
+
+postforme:
+  base_url: https://api.postforme.dev
+  social_account_ids: []              # empty = post to every connected account; see `python -m clipper accounts`
+  caption_template: "{title} 🔥 ({streamer})"   # placeholders: {title} {streamer} {platform}
