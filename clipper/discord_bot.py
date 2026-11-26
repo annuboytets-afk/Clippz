@@ -109,11 +109,32 @@ class ClipperBot(discord.Client):
             msg = await ch.fetch_message(db.get(clip_id)["discord_message_id"])
         base = msg.content
         await msg.edit(content=f"{base}\n\n⏳ Posting (approved by {interaction.user.mention})…", view=None)
+        who = interaction.user.mention
         try:
-            post_id = await self.pipeline.post_clip(clip_id, caption)
-            await msg.edit(content=f"{base}\n\n✅ Posted by {interaction.user.mention} — Post for Me id `{post_id}`")
+            post_id, expected = await self.pipeline.post_clip(clip_id, caption)
         except Exception as e:  # noqa: BLE001
             log.exception("Posting clip %s failed", clip_id)
             db.update(clip_id, status="pending", error=str(e)[:1000])
             await msg.edit(content=f"{base}\n\n⚠️ Posting failed: `{str(e)[:300]}` — try again.",
                            view=ApprovalView(self))
+            return
+        await msg.edit(content=f"{base}\n\n⏳ Approved by {who}. Uploaded to Post for Me (`{post_id}`), "
+                               f"waiting for {expected} account(s) to publish…")
+        try:
+            results = await self.pipeline.finish_post(clip_id, post_id, expected)
+        except Exception as e:  # noqa: BLE001
+            log.exception("Checking results for clip %s failed", clip_id)
+            results, err = [], str(e)
+        else:
+            err = ""
+        lines = []
+        for r in results:
+            name = f"{r.platform}" + (f" @{r.username}" if r.username else "")
+            lines.append(f"✅ {name}: {r.url or 'published'}" if r.success
+                         else f"❌ {name}: `{(r.error or 'unknown error')[:300]}`")
+        if len(results) < expected:
+            lines.append(f"⏳ {expected - len(results)} account(s) still publishing after 15 min "
+                         f"(post `{post_id}`). Run `python -m clipper results` later to check."
+                         + (f" Error: `{err[:200]}`" if err else ""))
+        text = f"{base}\n\nApproved by {who}:\n" + "\n".join(lines)
+        await msg.edit(content=text if len(text) <= 2000 else text[:1990] + "…")

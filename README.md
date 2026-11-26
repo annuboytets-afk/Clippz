@@ -52,6 +52,7 @@ Put them in `discord.notify_channel_id` and `discord.approval_channel_id` (they 
 python -m clipper check      # validates config, tests every API login, shows who is live
 python -m clipper accounts   # lists Post for Me social account ids (optional: pin them in config)
 python -m clipper run        # start the pipeline (Ctrl+C to stop)
+python -m clipper results    # what happened on each platform for approved clips
 ```
 
 To keep it running permanently on Linux, use a systemd user service:
@@ -117,5 +118,8 @@ python -m clipper analyze data/recordings/twitch_x/20261124_200000/chunk_00003.t
   If that lookup is blocked, set `kick_chatroom_id` for the streamer (find it in the browser dev tools
   network tab on the channel page). Without chat the detector uses audio alone.
 - **Discord previews** are re-encoded at 480p to fit `upload_limit_mb`. The full-quality clip is what gets posted.
+- After you press Approve, the Discord message updates with each platform's real outcome: a link to the
+  live post, or the exact error (for example a disconnected account or a rejected video). Publishing can take
+  a few minutes; the bot waits up to 15 minutes.
 - Clip state lives in `data/clipper.db`, so the Approve buttons keep working after a restart.
 - Only clip and repost streams you have the rights to (your own channel, or with the streamer's permission).

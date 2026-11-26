@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS clips (
     preview_path TEXT,
     score REAL,
     caption TEXT,
-    status TEXT NOT NULL DEFAULT 'pending',   -- pending | posting | posted | rejected | failed
+    status TEXT NOT NULL DEFAULT 'pending',   -- pending | posting | publishing | posted | rejected | failed
     discord_message_id INTEGER,
     post_id TEXT,
     error TEXT

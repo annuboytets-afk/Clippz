@@ -206,12 +206,27 @@ class Pipeline:
             log.exception("Sending clip %s to Discord failed", clip_id)
 
     # ---------- posting ----------
-    async def post_clip(self, clip_id: int, caption: str) -> str:
+    async def post_clip(self, clip_id: int, caption: str) -> tuple[str, int]:
+        """Upload + create the post. Returns (post id, number of accounts it goes to)."""
         clip = self.db.get(clip_id)
-        post = await self.pfm.post_video(Path(clip["path"]), caption, self.cfg.postforme.social_account_ids)
+        post, accounts = await self.pfm.post_video(Path(clip["path"]), caption,
+                                                   self.cfg.postforme.social_account_ids)
         post_id = str(post.get("id", ""))
-        self.db.update(clip_id, status="posted", post_id=post_id, error=None)
-        return post_id
+        self.db.update(clip_id, status="publishing", post_id=post_id, error=None)
+        return post_id, len(accounts)
+
+    async def finish_post(self, clip_id: int, post_id: str, expected: int):
+        """Wait for every platform's outcome and record it. Returns the results list."""
+        results = await self.pfm.wait_for_results(post_id, expected)
+        failed = [r for r in results if not r.success]
+        if not results:
+            self.db.update(clip_id, status="publishing", error="no results from Post for Me yet")
+        elif len(failed) == len(results):
+            self.db.update(clip_id, status="failed", error="; ".join(f"{r.platform}: {r.error}" for r in failed)[:1000])
+        else:
+            self.db.update(clip_id, status="posted",
+                           error="; ".join(f"{r.platform}: {r.error}" for r in failed)[:1000] or None)
+        return results
 
     # ---------- housekeeping ----------
     async def _cleanup_loop(self):

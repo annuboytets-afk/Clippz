@@ -3,6 +3,7 @@
   python -m clipper run                 # start the bot + pipeline
   python -m clipper check               # validate config and secrets, test API logins
   python -m clipper accounts            # list Post for Me social account ids
+  python -m clipper results             # what happened on each platform for approved clips
   python -m clipper analyze FILE        # offline: find hype moments in a recording (audio only)
 """
 from __future__ import annotations
@@ -89,6 +90,32 @@ def cmd_accounts(args):
     asyncio.run(go())
 
 
+def cmd_results(args):
+    """Show what happened on each platform for clips that were approved."""
+    from .config import load_config
+    from .db import ClipDB
+    from .postforme import PostForMe
+    cfg = load_config(args.config, args.env)
+    db = ClipDB(cfg.db_path)
+    rows = db.conn.execute("SELECT * FROM clips WHERE post_id IS NOT NULL ORDER BY id DESC LIMIT ?",
+                           (args.limit,)).fetchall()
+    if not rows:
+        print("No approved clips yet.")
+        return
+
+    async def go():
+        async with aiohttp.ClientSession() as sess:
+            pfm = PostForMe(sess, cfg.secrets.postforme_api_key, cfg.postforme.base_url)
+            for row in rows:
+                print(f"Clip #{row['id']} ({row['streamer']}) post {row['post_id']}:")
+                res = await pfm.results(row["post_id"])
+                if not res:
+                    print("   no results yet (still publishing, or the post never reached a platform)")
+                for r in res:
+                    print(f"   {'OK  ' if r.success else 'FAIL'} {r.platform} @{r.username}: {r.url if r.success else r.error}")
+    asyncio.run(go())
+
+
 def cmd_analyze(args):
     from .analysis import HypeDetector, audio_loudness, clip_bounds
     from .clips import cut_clip
@@ -133,6 +160,8 @@ def main():
     sub.add_parser("run")
     sub.add_parser("check")
     sub.add_parser("accounts")
+    r = sub.add_parser("results", help="show per-platform posting results of approved clips")
+    r.add_argument("--limit", type=int, default=10)
     a = sub.add_parser("analyze")
     a.add_argument("file")
     a.add_argument("--threshold", type=float)
@@ -141,7 +170,7 @@ def main():
     a.add_argument("--cut", metavar="DIR", help="also cut the clips into DIR")
     args = ap.parse_args()
     _setup_logging(args.verbose)
-    {"run": cmd_run, "check": cmd_check, "accounts": cmd_accounts, "analyze": cmd_analyze,
+    {"run": cmd_run, "check": cmd_check, "accounts": cmd_accounts, "analyze": cmd_analyze, "results": cmd_results,
      None: cmd_run}[args.cmd](args)
 
 
