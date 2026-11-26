@@ -12,7 +12,7 @@ from pathlib import Path
 import aiohttp
 
 from . import chat as chatmod
-from .analysis import HypeDetector, HypeMoment, audio_loudness
+from .analysis import HypeDetector, HypeMoment, audio_loudness, clip_bounds
 from .clips import cut_clip, make_preview
 from .config import Config, Streamer
 from .db import ClipDB
@@ -176,8 +176,7 @@ class Pipeline:
     async def _make_clip(self, sess: LiveSession, part: Part, m: HypeMoment):
         c = self.cfg.clips
         s = sess.streamer
-        start = max(0.0, m.t - c.pre_roll_seconds)
-        end = min(float(part.detector.end), m.t + c.post_roll_seconds)
+        start, end = clip_bounds(m, c, part.detector.end)
         stamp = datetime.fromtimestamp((part.rec.t0 or time.time()) + m.t).strftime("%Y%m%d_%H%M%S")
         out = c.dir / s.slug / f"{s.slug}_{stamp}.mp4"
         async with self._clip_sem:

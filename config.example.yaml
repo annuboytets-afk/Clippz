@@ -26,10 +26,14 @@ clips:
   #   both           = spike clips, plus a best-of-chunk clip for chunks that had no spike
   mode: best_per_chunk
   # best_min_score: 1.0               # optional: skip chunks where even the best moment is dull
-  pre_roll_seconds: 40                # clip starts this long before the hype moment
-  post_roll_seconds: 20               # and ends this long after it
+  # Clip length is automatic: a quick moment gets min_clip_seconds, a long exciting
+  # stretch (25 s or more) gets max_clip_seconds. Set both to the same number for a fixed length.
+  min_clip_seconds: 30
+  max_clip_seconds: 60
+  pre_roll_seconds: 40                # split of a clip before:after the moment (40:20 = two thirds
+  post_roll_seconds: 20               # before). A 60 s clip starts 40 s before, a 30 s clip 20 s before.
   threshold: 3.5                      # spikes/both only: lower = more clips, higher = fewer
-  cooldown_seconds: 90                # minimum gap between two clips of the same stream
+  cooldown_seconds: 90                # spikes: minimum gap between two spike clips (best clips just never overlap)
   min_baseline_seconds: 180           # no clips in the first 3 minutes of a recording
   baseline_window_seconds: 600        # "normal" activity = trailing 10 minutes
   chat_window_seconds: 10

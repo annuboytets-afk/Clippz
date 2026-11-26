@@ -52,6 +52,8 @@ class ClipConfig:
     best_min_score: float | None = None  # best_per_chunk: skip chunks whose best moment scores below this
     pre_roll_seconds: float = 40
     post_roll_seconds: float = 20
+    min_clip_seconds: float = 30
+    max_clip_seconds: float = 60
     threshold: float = 3.5
     cooldown_seconds: float = 90
     min_baseline_seconds: float = 180

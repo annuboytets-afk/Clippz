@@ -90,7 +90,7 @@ def cmd_accounts(args):
 
 
 def cmd_analyze(args):
-    from .analysis import HypeDetector, audio_loudness
+    from .analysis import HypeDetector, audio_loudness, clip_bounds
     from .clips import cut_clip
     from .config import ClipConfig, load_config
     from .recorder import Segment
@@ -114,12 +114,12 @@ def cmd_analyze(args):
     print(f"{len(loud)}s analysed, median loudness {np.median(loud):.1f} dBFS, {len(moments)} hype moment(s):")
     seg = [Segment(Path(args.file).resolve(), 0.0, float(len(loud)))]
     for i, m in enumerate(moments):
-        start = max(0, m.t - clip_cfg.pre_roll_seconds)
+        start, end = clip_bounds(m, clip_cfg, len(loud))
         line = (f"  {int(m.t) // 3600:02d}:{int(m.t) % 3600 // 60:02d}:{int(m.t) % 60:02d}  "
-                f"{m.kind:5}  score {m.score:.1f}")
+                f"{m.kind:5}  score {m.score:5.1f}  clip {end - start:.0f}s")
         if args.cut:
             out = Path(args.cut) / f"clip_{i:03d}.mp4"
-            cut_clip(seg, start, min(len(loud), m.t + clip_cfg.post_roll_seconds), out, clip_cfg.vertical)
+            cut_clip(seg, start, end, out, clip_cfg.vertical)
             line += f"  -> {out}"
         print(line)
 

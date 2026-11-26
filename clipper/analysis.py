@@ -45,6 +45,24 @@ class HypeMoment:
     chat_z: float
     audio_z: float
     kind: str = "spike"  # "spike" or "best"
+    duration: float = 0.0  # how many seconds the excitement lasted around t
+
+
+def clip_bounds(m: HypeMoment, cfg: ClipConfig, available_end: float) -> tuple[float, float]:
+    """Clip [start, end) for a moment.
+
+    Length scales with how long the excitement lasted: a burst of <= 5 s gets
+    min_clip_seconds, >= 25 s gets max_clip_seconds, linear in between. The moment keeps
+    the same relative position as pre_roll:post_roll (40:20 -> two thirds of the way in),
+    so a 60 s clip starts 40 s before the moment and a 30 s clip 20 s before it.
+    """
+    lo, hi = sorted((cfg.min_clip_seconds, cfg.max_clip_seconds))
+    frac = min(1.0, max(0.0, (m.duration - 5) / 20))
+    length = lo + frac * (hi - lo)
+    before = length * cfg.pre_roll_seconds / (cfg.pre_roll_seconds + cfg.post_roll_seconds)
+    start = max(0.0, m.t - before)
+    end = min(float(available_end), start + length)
+    return start, end
 
 
 def _robust_z(x: np.ndarray, t: int, lo: int, hi: int, floor: float) -> float:
@@ -104,9 +122,9 @@ class HypeDetector:
         c = self.cfg
         return (c.chat_weight * zc + c.audio_weight * za) / (c.chat_weight + c.audio_weight)
 
-    def _free(self, t: float) -> bool:
-        """True if a clip at t would not overlap / crowd an existing clip."""
-        return all(abs(t - ct) >= self.cfg.cooldown_seconds for ct in self.clip_times)
+    def _free(self, t: float, gap: float) -> bool:
+        """True if no existing clip moment is within `gap` seconds of t."""
+        return all(abs(t - ct) >= gap for ct in self.clip_times)
 
     def scores(self, chat: np.ndarray | None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         c = self.cfg
@@ -143,8 +161,9 @@ class HypeDetector:
         out = []
         for run in runs:
             t = max(run, key=lambda i: score[i])
-            if self._free(t):
-                out.append(HypeMoment(float(t), float(score[t]), float(zc[t]), float(za[t]), "spike"))
+            if self._free(t, self.cfg.cooldown_seconds):
+                out.append(HypeMoment(float(t), float(score[t]), float(zc[t]), float(za[t]), "spike",
+                                      float(run[-1] - run[0] + 1)))
                 self.clip_times.append(t)
         self.cursor = next_cursor
         return out
@@ -177,12 +196,20 @@ class HypeDetector:
             if not np.isfinite(score[i]):
                 break
             t = lo + int(i)
-            if not self._free(t):
-                continue
+            if not self._free(t, max(self.cfg.min_clip_seconds, self.cfg.max_clip_seconds)):
+                continue  # would overlap an existing clip
             if c.best_min_score is not None and score[i] < c.best_min_score:
                 return None
             self.clip_times.append(t)
-            return HypeMoment(float(t), float(score[i]), float(zc[i]), float(za[i]), "best")
+            # excitement lasts while the score stays above half of the peak
+            half = score[i] / 2 if score[i] > 0 else score[i]
+            left = right = int(i)
+            while left > 0 and score[left - 1] >= half:
+                left -= 1
+            while right < len(score) - 1 and score[right + 1] >= half:
+                right += 1
+            return HypeMoment(float(t), float(score[i]), float(zc[i]), float(za[i]), "best",
+                              float(right - left + 1))
         return None
 
     def process(self, chat: np.ndarray | None, final: bool = False) -> list[HypeMoment]:

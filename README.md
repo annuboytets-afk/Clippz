@@ -8,7 +8,7 @@ for approval. Approved clips are posted through the Post for Me API.
 poll every 2 min ──► live? ──► Discord "🔴 X is live" + start Streamlink │ ffmpeg (10-min .ts chunks)
                                  + chat listener (Twitch IRC / Kick Pusher / YouTube API)
 each finished chunk ──► audio loudness/sec + chat msgs/sec ──► robust z-scores vs trailing 10 min
-   ──► best moment of the chunk (and/or spikes above threshold) ──► clip [moment-40s, moment+20s]
+   ──► best moment of the chunk (and/or spikes above threshold) ──► 30–60 s clip around it
    ──► Discord post with preview + [Approve & post] [Edit caption] [Reject]
 Approve ──► Post for Me: upload video ──► create social post on your connected accounts
 ```
@@ -87,6 +87,13 @@ systemctl --user enable --now stream-clipper && loginctl enable-linger $USER
 and audio loudness are highest compared to the rest of that chunk.
 With `best_per_chunk` you can set `best_min_score` (for example 1.0) to skip chunks where even the
 best moment is dull, such as the streamer being AFK.
+
+## Clip length
+
+Clips are 30–60 seconds long, chosen automatically. A quick moment (a single scream, a
+burst of 5 seconds or less) gets a 30-second clip. A long exciting stretch (25 seconds or
+more of hype) gets the full 60 seconds. In between, the length scales smoothly. Change it with
+`min_clip_seconds` / `max_clip_seconds` in config.yaml. Setting both to the same number gives a fixed length.
 
 ## Tuning hype detection
 
