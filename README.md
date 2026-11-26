@@ -101,7 +101,7 @@ With `clips.vertical: true`, clips are made 1080x1920 for Shorts / TikTok / Reel
 
 | Layout | What it looks like | Best for |
 |---|---|---|
-| `auto` (default) | Finds the streamer's face and picks `split` or `face` itself. With no face it uses `blur` | Everything |
+| `auto` (default) | Finds the streamer's face and picks `split` or `face` itself. With no face it uses `no_face_layout` (`center` by default) | Everything |
 | `split` | Facecam on top, middle of the gameplay underneath | Gaming streams with a facecam in a corner |
 | `face` | 9:16 crop around where the face is | IRL / just-chatting streams |
 | `blur` | The whole picture in the middle, blurred copy behind it | When nothing may be cut off |

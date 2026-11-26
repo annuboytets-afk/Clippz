@@ -121,7 +121,8 @@ def cmd_analyze(args):
                 f"{m.kind:5}  score {m.score:5.1f}  clip {end - start:.0f}s")
         if args.cut:
             out = Path(args.cut) / f"clip_{i:03d}.mp4"
-            _, layout = cut_clip(seg, start, end, out, clip_cfg.vertical, clip_cfg.vertical_layout)
+            _, layout = cut_clip(seg, start, end, out, clip_cfg.vertical, clip_cfg.vertical_layout,
+                                 None, clip_cfg.no_face_layout)
             line += f"  -> {out} ({layout})"
         print(line)
 

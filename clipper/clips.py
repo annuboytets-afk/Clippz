@@ -5,6 +5,7 @@ Vertical layouts (clips.vertical_layout, or per streamer):
   split  - facecam on top, gameplay underneath (for gaming streams with a facecam in a corner)
   face   - 9:16 crop that follows where the face is (for IRL / just-chatting streams)
   blur   - the whole 16:9 picture, centred, on a blurred background (nothing is cut off)
+All layouts are full-screen 9:16 (1080x1920). When no face is found, clips.no_face_layout is used.
   center - plain centre crop (the old behaviour)
 """
 from __future__ import annotations
@@ -59,10 +60,15 @@ def detect_faces(frames: list[np.ndarray]) -> list[tuple[float, float, float, fl
     except ImportError:
         log.warning("opencv-python-headless not installed; using the blur layout")
         return []
-    cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    cascades = [cv2.CascadeClassifier(cv2.data.haarcascades + name) for name in
+                ("haarcascade_frontalface_default.xml", "haarcascade_profileface.xml")]
     found = []
     for f in frames:
-        faces = cascade.detectMultiScale(f, scaleFactor=1.1, minNeighbors=6, minSize=(20, 20))
+        faces = []
+        for cascade in cascades:  # frontal first, then side-on faces
+            faces = cascade.detectMultiScale(f, scaleFactor=1.1, minNeighbors=6, minSize=(20, 20))
+            if len(faces):
+                break
         if len(faces):
             x, y, w, h = max(faces, key=lambda b: b[2] * b[3])
             H, W = f.shape
@@ -70,12 +76,13 @@ def detect_faces(frames: list[np.ndarray]) -> list[tuple[float, float, float, fl
     return found
 
 
-def choose_layout(requested: str, faces: list, n_frames: int) -> tuple[str, tuple | None]:
+def choose_layout(requested: str, faces: list, n_frames: int,
+                  no_face: str = "center") -> tuple[str, tuple | None]:
     """Decide the layout and the (median) face box to build it around."""
     if requested in ("blur", "center"):
         return requested, None
-    if n_frames == 0 or len(faces) < max(2, 0.3 * n_frames):
-        return "blur", None  # no reliable face: show everything rather than guess
+    if n_frames == 0 or len(faces) < max(2, 0.25 * n_frames):
+        return no_face, None  # no reliable face found
     x, y, w, h = np.median(np.array(faces), axis=0)
     if requested == "auto":
         cx = x + w / 2
@@ -119,7 +126,8 @@ def vertical_filter(layout: str, W: int, H: int, box=None, exact_cam: bool = Fal
 
 
 def cut_clip(segments: list[Segment], start: float, end: float, out: Path, vertical: bool = False,
-             layout: str = "auto", facecam: list[float] | None = None) -> tuple[Path, str]:
+             layout: str = "auto", facecam: list[float] | None = None,
+             no_face: str = "center") -> tuple[Path, str]:
     """Cut [start, end) (seconds since recording start) spanning any number of chunks.
 
     Chunks keep continuous MPEG-TS timestamps, so they can be byte-concatenated.
@@ -139,8 +147,8 @@ def cut_clip(segments: list[Segment], start: float, end: float, out: Path, verti
         if facecam and layout in ("auto", "split"):
             used, box, exact = "split", tuple(facecam), True
         else:
-            frames = _sample_frames(src, offset, dur, W, H) if layout in ("auto", "split", "face") else []
-            used, box = choose_layout(layout, detect_faces(frames) if frames else [], len(frames))
+            frames = _sample_frames(src, offset, dur, W, H, n=16) if layout in ("auto", "split", "face") else []
+            used, box = choose_layout(layout, detect_faces(frames) if frames else [], len(frames), no_face)
             exact = False
         vf = ["-vf", vertical_filter(used, W, H, box, exact)]
     out.parent.mkdir(parents=True, exist_ok=True)

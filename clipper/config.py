@@ -76,6 +76,7 @@ class ClipConfig:
     keyword_weight: float = 1.0
     vertical: bool = False
     vertical_layout: str = "auto"  # auto | split | face | blur | center
+    no_face_layout: str = "center"  # used by auto/split/face when no face is found: center | blur
     youtube_chat_min_interval: float = 30
 
 
@@ -129,6 +130,8 @@ def _section(cls, data: dict | None):
     obj = cls(**data)
     if cls is ClipConfig and obj.mode not in ("spikes", "best_per_chunk", "both"):
         raise ValueError(f"clips.mode must be spikes, best_per_chunk or both (got {obj.mode!r})")
+    if cls is ClipConfig and obj.no_face_layout not in ("center", "blur"):
+        raise ValueError("clips.no_face_layout must be center or blur")
     if cls is ClipConfig and obj.vertical_layout not in VERTICAL_LAYOUTS:
         raise ValueError(f"clips.vertical_layout must be one of {VERTICAL_LAYOUTS} (got {obj.vertical_layout!r})")
     return obj

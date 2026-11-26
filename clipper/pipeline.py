@@ -182,7 +182,8 @@ class Pipeline:
         async with self._clip_sem:
             try:
                 _, layout = await asyncio.to_thread(cut_clip, part.rec.segments, start, end, out, c.vertical,
-                                                    s.vertical_layout or c.vertical_layout, s.facecam)
+                                                    s.vertical_layout or c.vertical_layout, s.facecam,
+                                                    c.no_face_layout)
                 preview = await asyncio.to_thread(make_preview, out, out.with_suffix(".preview.mp4"),
                                                   end - start, self.cfg.discord.upload_limit_mb)
             except Exception:  # noqa: BLE001

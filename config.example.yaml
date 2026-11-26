@@ -52,6 +52,7 @@ clips:
   #   blur   = whole picture, centred on a blurred background (nothing cut off)
   #   center = plain centre crop
   vertical_layout: auto
+  no_face_layout: center              # when no face is found: center (fills the screen) or blur
   youtube_chat_min_interval: 30       # seconds between YouTube chat polls (5 quota units each)
 
 discord:
