@@ -20,9 +20,15 @@ recording:
 
 clips:
   dir: data/clips
+  # How clips are picked:
+  #   best_per_chunk = one clip from every chunk: its most exciting moment, even on quiet streams
+  #   spikes         = only when chat/audio clearly spike above normal (quiet stretches give nothing)
+  #   both           = spike clips, plus a best-of-chunk clip for chunks that had no spike
+  mode: best_per_chunk
+  # best_min_score: 1.0               # optional: skip chunks where even the best moment is dull
   pre_roll_seconds: 40                # clip starts this long before the hype moment
   post_roll_seconds: 20               # and ends this long after it
-  threshold: 3.5                      # lower = more clips, higher = fewer
+  threshold: 3.5                      # spikes/both only: lower = more clips, higher = fewer
   cooldown_seconds: 90                # minimum gap between two clips of the same stream
   min_baseline_seconds: 180           # no clips in the first 3 minutes of a recording
   baseline_window_seconds: 600        # "normal" activity = trailing 10 minutes

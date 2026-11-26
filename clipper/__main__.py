@@ -95,18 +95,28 @@ def cmd_analyze(args):
     from .config import ClipConfig, load_config
     from .recorder import Segment
 
-    clip_cfg = load_config(args.config, args.env).clips if Path(args.config).exists() else ClipConfig()
+    if Path(args.config).exists():
+        full = load_config(args.config, args.env)
+        clip_cfg, seg_len = full.clips, full.recording.segment_seconds
+    else:
+        clip_cfg, seg_len = ClipConfig(), 600
     if args.threshold is not None:
         clip_cfg.threshold = args.threshold
+    if args.mode:
+        clip_cfg.mode = args.mode
+    seg_len = args.segment or seg_len
     loud = audio_loudness(Path(args.file))
     det = HypeDetector(clip_cfg)
-    det.add_audio(0, loud)
-    moments = det.detect(None, final=True)
+    moments = []
+    for s in range(0, len(loud), seg_len):  # feed it chunk by chunk, like a live recording
+        det.add_audio(s, loud[s:s + seg_len])
+        moments += det.process(None, final=s + seg_len >= len(loud))
     print(f"{len(loud)}s analysed, median loudness {np.median(loud):.1f} dBFS, {len(moments)} hype moment(s):")
     seg = [Segment(Path(args.file).resolve(), 0.0, float(len(loud)))]
     for i, m in enumerate(moments):
         start = max(0, m.t - clip_cfg.pre_roll_seconds)
-        line = f"  {int(m.t) // 3600:02d}:{int(m.t) % 3600 // 60:02d}:{int(m.t) % 60:02d}  score {m.score:.1f}"
+        line = (f"  {int(m.t) // 3600:02d}:{int(m.t) % 3600 // 60:02d}:{int(m.t) % 60:02d}  "
+                f"{m.kind:5}  score {m.score:.1f}")
         if args.cut:
             out = Path(args.cut) / f"clip_{i:03d}.mp4"
             cut_clip(seg, start, min(len(loud), m.t + clip_cfg.post_roll_seconds), out, clip_cfg.vertical)
@@ -126,6 +136,8 @@ def main():
     a = sub.add_parser("analyze")
     a.add_argument("file")
     a.add_argument("--threshold", type=float)
+    a.add_argument("--mode", choices=["spikes", "best_per_chunk", "both"])
+    a.add_argument("--segment", type=int, help="chunk length in seconds (default: from config)")
     a.add_argument("--cut", metavar="DIR", help="also cut the clips into DIR")
     args = ap.parse_args()
     _setup_logging(args.verbose)

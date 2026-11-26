@@ -48,6 +48,8 @@ class RecordingConfig:
 @dataclass
 class ClipConfig:
     dir: Path = Path("data/clips")
+    mode: str = "best_per_chunk"  # spikes | best_per_chunk | both
+    best_min_score: float | None = None  # best_per_chunk: skip chunks whose best moment scores below this
     pre_roll_seconds: float = 40
     post_roll_seconds: float = 20
     threshold: float = 3.5
@@ -114,7 +116,10 @@ def _section(cls, data: dict | None):
         raise ValueError(f"Unknown keys in {cls.__name__}: {sorted(unknown)}")
     if "dir" in data:
         data["dir"] = Path(data["dir"])
-    return cls(**data)
+    obj = cls(**data)
+    if cls is ClipConfig and obj.mode not in ("spikes", "best_per_chunk", "both"):
+        raise ValueError(f"clips.mode must be spikes, best_per_chunk or both (got {obj.mode!r})")
+    return obj
 
 
 def load_config(path: str | Path = "config.yaml", env_file: str | Path = ".env") -> Config:

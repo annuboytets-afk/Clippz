@@ -166,7 +166,7 @@ class Pipeline:
                 chat = None
                 if sess.counter.active and part.rec.t0:
                     chat = sess.counter.series(part.rec.t0, part.detector.end)
-                for m in part.detector.detect(chat, final=final):
+                for m in part.detector.process(chat, final=final):
                     asyncio.create_task(self._make_clip(sess, part, m))
                 if final:
                     return
@@ -193,8 +193,12 @@ class Pipeline:
         clip_id = self.db.add(streamer=s.name, platform=s.platform, title=sess.info.title, path=str(out),
                               preview_path=str(preview), score=m.score, caption=caption)
         hhmmss = time.strftime("%H:%M:%S", time.gmtime(m.t))
+        if m.kind == "best":
+            why = f"🏆 Best moment of this {self.cfg.recording.segment_seconds / 60:g}-minute chunk"
+        else:
+            why = "🔥 Hype spike"
         text = (f"🎬 **Clip #{clip_id}** — {s.name} ({s.platform}) at {hhmmss} into the recording\n"
-                f"Hype score {m.score:.1f} (chat z={m.chat_z:.1f}, audio z={m.audio_z:.1f}), "
+                f"{why} · score {m.score:.1f} (chat z={m.chat_z:.1f}, audio z={m.audio_z:.1f}), "
                 f"{end - start:.0f}s\nCaption: {caption}")
         try:
             msg_id = await self.bot.send_for_approval(clip_id, text, preview, self.cfg.discord.upload_limit_mb)

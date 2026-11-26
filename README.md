@@ -8,7 +8,7 @@ for approval. Approved clips are posted through the Post for Me API.
 poll every 2 min ──► live? ──► Discord "🔴 X is live" + start Streamlink │ ffmpeg (10-min .ts chunks)
                                  + chat listener (Twitch IRC / Kick Pusher / YouTube API)
 each finished chunk ──► audio loudness/sec + chat msgs/sec ──► robust z-scores vs trailing 10 min
-   ──► peak above threshold ──► clip [peak-40s, peak+20s] (crosses chunk boundaries)
+   ──► best moment of the chunk (and/or spikes above threshold) ──► clip [moment-40s, moment+20s]
    ──► Discord post with preview + [Approve & post] [Edit caption] [Reject]
 Approve ──► Post for Me: upload video ──► create social post on your connected accounts
 ```
@@ -75,15 +75,28 @@ WantedBy=default.target
 systemctl --user enable --now stream-clipper && loginctl enable-linger $USER
 ```
 
+## How clips are picked (`clips.mode` in config.yaml)
+
+| Mode | What you get |
+|---|---|
+| `best_per_chunk` (default) | Exactly one clip from every 10-minute chunk: its most exciting moment, even on a quiet stream. About 6 clips per hour of stream. |
+| `spikes` | Clips only when chat or audio clearly spikes above normal. Quiet stretches give nothing, a crazy stretch can give several. |
+| `both` | Every spike clip, plus the best moment from any chunk that had no spike. |
+
+"Most exciting" means the moment where chat activity (and hype words like KEKW / POG / "clip it")
+and audio loudness are highest compared to the rest of that chunk.
+With `best_per_chunk` you can set `best_min_score` (for example 1.0) to skip chunks where even the
+best moment is dull, such as the streamer being AFK.
+
 ## Tuning hype detection
 
 Try settings offline on any recording first (audio only, no chat):
 
 ```bash
-python -m clipper analyze data/recordings/twitch_x/20261124_200000/chunk_00003.ts --threshold 3 --cut /tmp/test-clips
+python -m clipper analyze data/recordings/twitch_x/20261124_200000/chunk_00003.ts --mode best_per_chunk --cut /tmp/test-clips
 ```
 
-- More or fewer clips: change `clips.threshold` (default 3.5; try 2.5–5).
+- More or fewer spike clips: change `clips.threshold` (default 3.5; try 2.5–5).
 - Chat-heavy streamers: raise `chat_weight`. Loud-music streamers: lower `audio_weight`.
 - Clips are only cut once a 10-minute chunk finishes, so a clip arrives up to ~10 minutes
   after the moment. Lower `segment_seconds` if you want them sooner.
