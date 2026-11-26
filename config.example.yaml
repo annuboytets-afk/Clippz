@@ -10,8 +10,6 @@ streamers:
   - platform: kick
     channel: some-kick-slug           # the name in kick.com/<slug>
     # kick_chatroom_id: 123456        # set if the automatic chatroom lookup is blocked
-    # vertical_layout: split          # optional per-streamer override
-    # facecam: [0.0, 0.65, 0.25, 0.35] # optional exact facecam box: x, y, width, height (0-1)
 
 recording:
   dir: data/recordings
@@ -44,15 +42,7 @@ clips:
   min_chat_messages: 0
   keyword_weight: 1.0                 # extra weight for messages containing a hype keyword
   # keywords: [pog, kekw, lul, clip it, ...]   # defaults are built in
-  vertical: false                     # true = 9:16 (1080x1920) for Shorts/TikTok/Reels
-  # How vertical clips keep faces visible:
-  #   auto   = finds the face: facecam on top + gameplay below, or follows the face on IRL streams
-  #   split  = always facecam on top, gameplay below
-  #   face   = 9:16 crop that follows the face
-  #   blur   = whole picture, centred on a blurred background (nothing cut off)
-  #   center = plain centre crop
-  vertical_layout: auto
-  no_face_layout: center              # when no face is found: center (fills the screen) or blur
+  vertical: false                     # true = crop to 9:16 (1080x1920) for Shorts/TikTok/Reels
   youtube_chat_min_interval: 30       # seconds between YouTube chat polls (5 quota units each)
 
 discord:

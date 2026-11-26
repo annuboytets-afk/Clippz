@@ -181,9 +181,7 @@ class Pipeline:
         out = c.dir / s.slug / f"{s.slug}_{stamp}.mp4"
         async with self._clip_sem:
             try:
-                _, layout = await asyncio.to_thread(cut_clip, part.rec.segments, start, end, out, c.vertical,
-                                                    s.vertical_layout or c.vertical_layout, s.facecam,
-                                                    c.no_face_layout)
+                await asyncio.to_thread(cut_clip, part.rec.segments, start, end, out, c.vertical)
                 preview = await asyncio.to_thread(make_preview, out, out.with_suffix(".preview.mp4"),
                                                   end - start, self.cfg.discord.upload_limit_mb)
             except Exception:  # noqa: BLE001
@@ -200,7 +198,7 @@ class Pipeline:
             why = "🔥 Hype spike"
         text = (f"🎬 **Clip #{clip_id}** — {s.name} ({s.platform}) at {hhmmss} into the recording\n"
                 f"{why} · score {m.score:.1f} (chat z={m.chat_z:.1f}, audio z={m.audio_z:.1f}), "
-                f"{end - start:.0f}s" + (f" · layout: {layout}" if c.vertical else "") + f"\nCaption: {caption}")
+                f"{end - start:.0f}s\nCaption: {caption}")
         try:
             msg_id = await self.bot.send_for_approval(clip_id, text, preview, self.cfg.discord.upload_limit_mb)
             self.db.update(clip_id, discord_message_id=msg_id)

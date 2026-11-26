@@ -95,30 +95,6 @@ burst of 5 seconds or less) gets a 30-second clip. A long exciting stretch (25 s
 more of hype) gets the full 60 seconds. In between, the length scales smoothly. Change it with
 `min_clip_seconds` / `max_clip_seconds` in config.yaml. Setting both to the same number gives a fixed length.
 
-## Vertical clips that keep faces visible
-
-With `clips.vertical: true`, clips are made 1080x1920 for Shorts / TikTok / Reels. The layout comes from `clips.vertical_layout`:
-
-| Layout | What it looks like | Best for |
-|---|---|---|
-| `auto` (default) | Finds the streamer's face and picks `split` or `face` itself. With no face it uses `no_face_layout` (`center` by default) | Everything |
-| `split` | Facecam on top, middle of the gameplay underneath | Gaming streams with a facecam in a corner |
-| `face` | 9:16 crop around where the face is | IRL / just-chatting streams |
-| `blur` | The whole picture in the middle, blurred copy behind it | When nothing may be cut off |
-| `center` | Plain centre crop | Streams without a facecam |
-
-You can override it per streamer, and give an exact facecam box (fractions of the screen:
-x, y, width, height) when auto-detection crops it badly:
-
-```yaml
-  - platform: twitch
-    channel: jynxzi
-    vertical_layout: split
-    facecam: [0.0, 0.65, 0.25, 0.35]   # facecam in the bottom-left quarter
-```
-
-Face detection uses OpenCV, which is in requirements.txt. The layout picked for each clip is shown in its Discord message.
-
 ## Tuning hype detection
 
 Try settings offline on any recording first (audio only, no chat):

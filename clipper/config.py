@@ -10,7 +10,6 @@ import yaml
 from dotenv import load_dotenv
 
 PLATFORMS = ("twitch", "youtube", "kick")
-VERTICAL_LAYOUTS = ("auto", "split", "face", "blur", "center")
 
 
 @dataclass
@@ -19,8 +18,6 @@ class Streamer:
     channel: str  # twitch login, kick slug, or youtube channel id / @handle
     name: str = ""
     kick_chatroom_id: int | None = None
-    vertical_layout: str | None = None  # override clips.vertical_layout for this streamer
-    facecam: list[float] | None = None  # [x, y, width, height] of the facecam, as fractions of the screen
 
     def __post_init__(self):
         self.platform = self.platform.lower()
@@ -28,10 +25,6 @@ class Streamer:
             raise ValueError(f"Unknown platform {self.platform!r} (use one of {PLATFORMS})")
         if not self.name:
             self.name = self.channel.lstrip("@")
-        if self.vertical_layout and self.vertical_layout not in VERTICAL_LAYOUTS:
-            raise ValueError(f"{self.name}: vertical_layout must be one of {VERTICAL_LAYOUTS}")
-        if self.facecam is not None and (len(self.facecam) != 4 or not all(0 <= v <= 1 for v in self.facecam)):
-            raise ValueError(f"{self.name}: facecam must be [x, y, width, height] with values between 0 and 1")
 
     @property
     def key(self) -> str:
@@ -75,8 +68,6 @@ class ClipConfig:
     ])
     keyword_weight: float = 1.0
     vertical: bool = False
-    vertical_layout: str = "auto"  # auto | split | face | blur | center
-    no_face_layout: str = "center"  # used by auto/split/face when no face is found: center | blur
     youtube_chat_min_interval: float = 30
 
 
@@ -130,10 +121,6 @@ def _section(cls, data: dict | None):
     obj = cls(**data)
     if cls is ClipConfig and obj.mode not in ("spikes", "best_per_chunk", "both"):
         raise ValueError(f"clips.mode must be spikes, best_per_chunk or both (got {obj.mode!r})")
-    if cls is ClipConfig and obj.no_face_layout not in ("center", "blur"):
-        raise ValueError("clips.no_face_layout must be center or blur")
-    if cls is ClipConfig and obj.vertical_layout not in VERTICAL_LAYOUTS:
-        raise ValueError(f"clips.vertical_layout must be one of {VERTICAL_LAYOUTS} (got {obj.vertical_layout!r})")
     return obj
 
 
