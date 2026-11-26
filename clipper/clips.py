@@ -24,7 +24,7 @@ def cut_clip(segments: list[Segment], start: float, end: float, out: Path, verti
     start = max(start, segs[0].start)
     end = min(end, segs[-1].end)
     src = "concat:" + "|".join(str(s.path) for s in segs)
-    vf = ["crop=ih*9/16:ih,scale=1080:1920"] if vertical else []
+    vf = ["crop=trunc(ih*9/16/2)*2:ih,scale=1080:1920,setsar=1"] if vertical else []
     out.parent.mkdir(parents=True, exist_ok=True)
     _run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
           "-ss", f"{start - segs[0].start:.3f}", "-i", src, "-t", f"{end - start:.3f}",
