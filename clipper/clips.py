@@ -150,11 +150,26 @@ def cut_clip(segments: list[Segment], start: float, end: float, out: Path, verti
 
 
 def make_preview(src: Path, out: Path, duration: float, limit_mb: float) -> Path:
-    """Low-res copy that fits under Discord's upload limit."""
-    total_kbps = limit_mb * 8192 * 0.9 / max(duration, 1)
-    v_kbps = max(150, int(total_kbps - 96))
+    """Smaller copy for the Discord approval message that fits under the upload limit.
+
+    Only the preview is reduced; the clip that gets posted stays full quality. To spend
+    Discord's few MB on sharpness: 540 px on the short side (540x960 for vertical clips),
+    30 fps instead of 60, a more efficient encoder preset and lighter audio.
+    """
+    w, h = _video_size(src)
+    short = min(540, w, h)
+    scale = f"scale=-2:{short}" if w >= h else f"scale={short}:-2"
+    audio_kbps = 64
+    total_kbps = limit_mb * 8192 * 0.92 / max(duration, 1)
+    v_kbps = max(150, int(total_kbps - audio_kbps))
     _run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(src),
-          "-vf", "scale=-2:'min(480,ih)'", "-c:v", "libx264", "-preset", "veryfast",
-          "-b:v", f"{v_kbps}k", "-maxrate", f"{v_kbps}k", "-bufsize", f"{2 * v_kbps}k",
-          "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(out)])
+          "-vf", f"{scale},fps=30", "-c:v", "libx264", "-preset", "medium",
+          "-b:v", f"{v_kbps}k", "-maxrate", f"{int(v_kbps * 1.2)}k", "-bufsize", f"{2 * v_kbps}k",
+          "-c:a", "aac", "-b:a", f"{audio_kbps}k", "-movflags", "+faststart", str(out)])
+    if out.stat().st_size > limit_mb * 1024 * 1024:  # rare: very busy footage overshot the budget
+        _run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(src),
+              "-vf", f"{scale},fps=30", "-c:v", "libx264", "-preset", "medium",
+              "-b:v", f"{int(v_kbps * 0.75)}k", "-maxrate", f"{int(v_kbps * 0.8)}k",
+              "-bufsize", f"{v_kbps}k", "-c:a", "aac", "-b:a", f"{audio_kbps}k",
+              "-movflags", "+faststart", str(out)])
     return out
