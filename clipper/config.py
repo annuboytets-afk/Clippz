@@ -10,6 +10,14 @@ import yaml
 from dotenv import load_dotenv
 
 PLATFORMS = ("twitch", "youtube", "kick")
+VERTICAL_FORMATS = ("auto", "9:16", "4:5", "16:9")
+
+
+def _ratio(v) -> str:
+    """YAML reads an unquoted 9:16 as the number 556 (base-60), so turn such numbers back into ratios."""
+    if isinstance(v, int) and not isinstance(v, bool):
+        return f"{v // 60}:{v % 60}"
+    return str(v)
 
 
 @dataclass
@@ -18,6 +26,7 @@ class Streamer:
     channel: str  # twitch login, kick slug, or youtube channel id / @handle
     name: str = ""
     kick_chatroom_id: int | None = None
+    vertical_format: str | None = None  # override clips.vertical_format for this streamer
 
     def __post_init__(self):
         self.platform = self.platform.lower()
@@ -25,6 +34,10 @@ class Streamer:
             raise ValueError(f"Unknown platform {self.platform!r} (use one of {PLATFORMS})")
         if not self.name:
             self.name = self.channel.lstrip("@")
+        if self.vertical_format is not None:
+            self.vertical_format = _ratio(self.vertical_format)
+            if self.vertical_format not in VERTICAL_FORMATS:
+                raise ValueError(f"{self.name}: vertical_format must be one of {VERTICAL_FORMATS}")
 
     @property
     def key(self) -> str:
@@ -68,6 +81,8 @@ class ClipConfig:
     ])
     keyword_weight: float = 1.0
     vertical: bool = False
+    vertical_format: str = "auto"  # auto | 9:16 | 4:5 | 16:9 (picture inside the 9:16 video)
+    vertical_background: str = "blur"  # blur | black (fills the space around 4:5 and 16:9)
     youtube_chat_min_interval: float = 30
 
 
@@ -119,6 +134,12 @@ def _section(cls, data: dict | None):
     if "dir" in data:
         data["dir"] = Path(data["dir"])
     obj = cls(**data)
+    if cls is ClipConfig:
+        obj.vertical_format = _ratio(obj.vertical_format)
+        if obj.vertical_format not in VERTICAL_FORMATS:
+            raise ValueError(f"clips.vertical_format must be one of {VERTICAL_FORMATS} (got {obj.vertical_format!r})")
+        if obj.vertical_background not in ("blur", "black"):
+            raise ValueError("clips.vertical_background must be blur or black")
     if cls is ClipConfig and obj.mode not in ("spikes", "best_per_chunk", "both"):
         raise ValueError(f"clips.mode must be spikes, best_per_chunk or both (got {obj.mode!r})")
     return obj

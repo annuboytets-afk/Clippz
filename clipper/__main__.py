@@ -131,6 +131,8 @@ def cmd_analyze(args):
         clip_cfg.threshold = args.threshold
     if args.mode:
         clip_cfg.mode = args.mode
+    if args.format:
+        clip_cfg.vertical, clip_cfg.vertical_format = True, args.format
     seg_len = args.segment or seg_len
     loud = audio_loudness(Path(args.file))
     det = HypeDetector(clip_cfg)
@@ -146,8 +148,9 @@ def cmd_analyze(args):
                 f"{m.kind:5}  score {m.score:5.1f}  clip {end - start:.0f}s")
         if args.cut:
             out = Path(args.cut) / f"clip_{i:03d}.mp4"
-            cut_clip(seg, start, end, out, clip_cfg.vertical)
-            line += f"  -> {out}"
+            _, framing = cut_clip(seg, start, end, out, clip_cfg.vertical, clip_cfg.vertical_format,
+                                  clip_cfg.vertical_background)
+            line += f"  -> {out} ({framing})"
         print(line)
 
 
@@ -166,6 +169,8 @@ def main():
     a.add_argument("file")
     a.add_argument("--threshold", type=float)
     a.add_argument("--mode", choices=["spikes", "best_per_chunk", "both"])
+    a.add_argument("--format", choices=["auto", "9:16", "4:5", "16:9"],
+                   help="make vertical clips with this framing (implies vertical)")
     a.add_argument("--segment", type=int, help="chunk length in seconds (default: from config)")
     a.add_argument("--cut", metavar="DIR", help="also cut the clips into DIR")
     args = ap.parse_args()

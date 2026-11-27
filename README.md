@@ -96,6 +96,24 @@ burst of 5 seconds or less) gets a 30-second clip. A long exciting stretch (25 s
 more of hype) gets the full 60 seconds. In between, the length scales smoothly. Change it with
 `min_clip_seconds` / `max_clip_seconds` in config.yaml. Setting both to the same number gives a fixed length.
 
+## Vertical clips for TikTok / Shorts
+
+With `clips.vertical: true` every clip is a 1080x1920 (9:16) video. The picture inside it
+(`clips.vertical_format`) is:
+
+| Format | Looks like |
+|---|---|
+| `auto` (default) | Picked per clip from where the action is (see below) |
+| `9:16` | Fills the whole phone screen |
+| `4:5` | A taller box in the middle, background above and below |
+| `16:9` | The full stream picture in the middle, background above and below |
+
+`auto` measures where things move during the clip. If at least 85% of the movement fits in a
+full-screen 9:16 crop, it uses that, positioned over the action. If 80% fits in 4:5, it uses
+4:5. Otherwise it shows the whole 16:9 picture so nothing important is cut off.
+The background around 4:5 and 16:9 is a blurred copy of the video (`vertical_background: blur`)
+or plain black (`black`). You can force a format for one streamer with `vertical_format: "16:9"`.
+
 ## Tuning hype detection
 
 Try settings offline on any recording first (audio only, no chat):

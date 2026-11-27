@@ -10,6 +10,7 @@ streamers:
   - platform: kick
     channel: some-kick-slug           # the name in kick.com/<slug>
     # kick_chatroom_id: 123456        # set if the automatic chatroom lookup is blocked
+    # vertical_format: "16:9"         # optional per-streamer override (quote it)
 
 recording:
   dir: data/recordings
@@ -42,7 +43,12 @@ clips:
   min_chat_messages: 0
   keyword_weight: 1.0                 # extra weight for messages containing a hype keyword
   # keywords: [pog, kekw, lul, clip it, ...]   # defaults are built in
-  vertical: false                     # true = crop to 9:16 (1080x1920) for Shorts/TikTok/Reels
+  vertical: false                     # true = 9:16 (1080x1920) videos for Shorts/TikTok/Reels
+  # Picture inside the 9:16 video:
+  #   auto = decided per clip from where the action is
+  #   9:16 = fills the screen, 4:5 = taller box in the middle, 16:9 = whole stream picture in the middle
+  vertical_format: auto
+  vertical_background: blur           # blur or black, for the space around 4:5 and 16:9
   youtube_chat_min_interval: 30       # seconds between YouTube chat polls (5 quota units each)
 
 discord:
