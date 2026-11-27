@@ -4,3 +4,4 @@ numpy>=1.26
 PyYAML>=6.0
 python-dotenv>=1.0
 streamlink>=7.0
+anthropic>=1.0

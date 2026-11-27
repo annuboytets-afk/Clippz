@@ -19,6 +19,7 @@ from .db import ClipDB
 from .platforms import KickAPI, LiveInfo, TwitchAPI, YouTubeAPI
 from .postforme import PostForMe
 from .recorder import Recording, Segment
+from .titles import TitleWriter
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +64,8 @@ class Pipeline:
         self.youtube = YouTubeAPI(self.session, s.youtube_api_key)
         self.kick = KickAPI(self.session, s.kick_client_id, s.kick_client_secret)
         self.pfm = PostForMe(self.session, s.postforme_api_key, self.cfg.postforme.base_url)
+        self.titles = TitleWriter(s.anthropic_api_key, self.cfg.titles.model, self.cfg.titles.extra_instructions)
+        log.info("Clip titles: %s", f"AI ({self.cfg.titles.model})" if self.titles.client else "built-in templates")
         asyncio.create_task(self._cleanup_loop())
         log.info("Watching %d streamers every %ss", len(self.cfg.streamers), self.cfg.poll_interval_seconds)
         while True:
@@ -189,8 +192,15 @@ class Pipeline:
             except Exception:  # noqa: BLE001
                 log.exception("Cutting clip failed")
                 return
+        info = sess.info
+        name = info.display_name or s.name
+        t0 = part.rec.t0 or time.time()
+        # chat reacts a few seconds after things happen, so read a little past the clip's end
+        chat = sess.counter.messages_between(t0 + start, t0 + end + 10)
+        title = await self.titles.write(name, s.platform, info.category, info.title, chat)
         caption = self.cfg.postforme.caption_template.format(
-            title=sess.info.title, streamer=s.name, platform=s.platform)
+            title=title.title, hashtags=title.hashtag_text, streamer=name, platform=s.platform,
+            category=info.category or "", stream_title=info.title).strip()
         clip_id = self.db.add(streamer=s.name, platform=s.platform, title=sess.info.title, path=str(out),
                               preview_path=str(preview), score=m.score, caption=caption)
         hhmmss = time.strftime("%H:%M:%S", time.gmtime(m.t))
@@ -199,6 +209,7 @@ class Pipeline:
         else:
             why = "🔥 Hype spike"
         text = (f"🎬 **Clip #{clip_id}** — {s.name} ({s.platform}) at {hhmmss} into the recording\n"
+                f"Title ({'AI' if title.source == 'ai' else 'built-in'}): **{title.title}**\n"
                 f"{why} · score {m.score:.1f} (chat z={m.chat_z:.1f}, audio z={m.audio_z:.1f}), "
                 f"{end - start:.0f}s"
                 + (f" · format: {framing} on 9:16" if c.vertical else "") + f"\nCaption: {caption}")

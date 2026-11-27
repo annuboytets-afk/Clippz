@@ -32,6 +32,7 @@ class ChatCounter:
         self.keyword_weight = keyword_weight
         self.keep = keep_seconds
         self.events: deque[tuple[float, float]] = deque()
+        self.texts: deque[tuple[float, str]] = deque(maxlen=50000)  # for clip titles
         self.active = False  # set once a listener has connected
 
     def add(self, text: str, ts: float | None = None):
@@ -40,9 +41,16 @@ class ChatCounter:
         if self._re and self._re.search(text.lower()):
             w += self.keyword_weight
         self.events.append((ts, w))
+        self.texts.append((ts, text))
         cutoff = time.time() - self.keep
         while self.events and self.events[0][0] < cutoff:
             self.events.popleft()
+        while self.texts and self.texts[0][0] < cutoff:
+            self.texts.popleft()
+
+    def messages_between(self, start: float, end: float) -> list[str]:
+        """Chat message texts sent between two wall-clock times, oldest first."""
+        return [t for ts, t in sorted(self.texts) if start <= ts < end]
 
     def series(self, t0: float, n: int) -> np.ndarray:
         """Weighted message counts per second for seconds [0, n) after wall-clock t0."""

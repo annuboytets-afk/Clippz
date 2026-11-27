@@ -48,8 +48,9 @@ class PostResult:
 
 
 def youtube_title(caption: str) -> str:
-    """YouTube titles: max 100 characters, no angle brackets, not empty."""
-    title = re.sub(r"[<>]", "", caption).strip() or "Stream clip"
+    """YouTube title from the caption's first line: no hashtags, max 100 characters, no angle brackets."""
+    first = caption.strip().splitlines()[0] if caption.strip() else ""
+    title = re.sub(r"\s+", " ", re.sub(r"#\w+", "", re.sub(r"[<>]", "", first))).strip() or "Stream clip"
     return title if len(title) <= 100 else title[:97].rstrip() + "..."
 
 

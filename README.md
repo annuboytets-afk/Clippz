@@ -38,6 +38,7 @@ cp config.example.yaml config.yaml # streamers, Discord channel ids, tuning
 | `KICK_CLIENT_ID`, `KICK_CLIENT_SECRET` | kick.com → Settings → Developer → create app |
 | `DISCORD_BOT_TOKEN` | discord.com/developers/applications → New app → Bot → Reset token. Invite with OAuth2 URL generator: scope `bot`, permissions *View Channels, Send Messages, Attach Files, Read Message History* |
 | `POSTFORME_API_KEY` | postforme.dev dashboard → API keys. Connect your TikTok/YouTube/Instagram/X accounts there first. |
+| `ANTHROPIC_API_KEY` (optional) | console.anthropic.com → API keys. Enables AI-written clip titles. |
 
 You only need keys for platforms you actually list in `config.yaml`.
 
@@ -113,6 +114,20 @@ full-screen 9:16 crop, it uses that, positioned over the action. If 80% fits in 
 4:5. Otherwise it shows the whole 16:9 picture so nothing important is cut off.
 The background around 4:5 and 16:9 is a blurred copy of the video (`vertical_background: blur`)
 or plain black (`black`). You can force a format for one streamer with `vertical_format: "16:9"`.
+
+## Clip titles
+
+Clips get their own title about what happened, with the streamer's name, instead of the stream title.
+
+- **With `ANTHROPIC_API_KEY` in `.env`:** Claude (`titles.model`, default Claude Opus 5.5) reads what chat
+  said during the clip, plus the game/category, and writes a title and hashtags, e.g.
+  "KaiCenat gets jump scared so hard he falls off his chair 😭 #kaicenat #horror #fyp".
+  This costs roughly a cent per clip. `titles.extra_instructions` lets you steer the style.
+- **Without a key** (or if that call fails): a built-in title matching chat's reaction (laughing, shocked
+  or hype), e.g. "KaiCenat had chat in tears 😂".
+
+The caption is `postforme.caption_template` (default `"{title} {hashtags}"`). YouTube gets the title
+without hashtags. You can still change the caption in Discord with **Edit caption** before posting.
 
 ## Tuning hype detection
 

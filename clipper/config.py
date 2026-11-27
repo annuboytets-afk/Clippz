@@ -99,7 +99,14 @@ class DiscordConfig:
 class PostForMeConfig:
     base_url: str = "https://api.postforme.dev"
     social_account_ids: list[str] = field(default_factory=list)
-    caption_template: str = "{title} 🔥 ({streamer})"
+    # {title} = clip title about what happened, {hashtags}, {streamer}, {platform}, {category}, {stream_title}
+    caption_template: str = "{title} {hashtags}"
+
+
+@dataclass
+class TitlesConfig:
+    model: str = "claude-opus-5-5"  # used when ANTHROPIC_API_KEY is set
+    extra_instructions: str = ""  # optional style notes for AI titles, e.g. "always in Spanish"
 
 
 @dataclass
@@ -111,6 +118,7 @@ class Secrets:
     kick_client_secret: str = ""
     discord_bot_token: str = ""
     postforme_api_key: str = ""
+    anthropic_api_key: str = ""  # optional: AI-written clip titles
 
 
 @dataclass
@@ -122,6 +130,7 @@ class Config:
     clips: ClipConfig = field(default_factory=ClipConfig)
     discord: DiscordConfig = field(default_factory=DiscordConfig)
     postforme: PostForMeConfig = field(default_factory=PostForMeConfig)
+    titles: TitlesConfig = field(default_factory=TitlesConfig)
     secrets: Secrets = field(default_factory=Secrets)
 
 
@@ -159,6 +168,7 @@ def load_config(path: str | Path = "config.yaml", env_file: str | Path = ".env")
         clips=_section(ClipConfig, raw.pop("clips", None)),
         discord=_section(DiscordConfig, raw.pop("discord", None)),
         postforme=_section(PostForMeConfig, raw.pop("postforme", None)),
+        titles=_section(TitlesConfig, raw.pop("titles", None)),
         secrets=Secrets(**{k: os.getenv(k.upper(), "") for k in Secrets.__dataclass_fields__}),
     )
     if raw:

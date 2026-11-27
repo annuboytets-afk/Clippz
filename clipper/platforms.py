@@ -19,6 +19,8 @@ class LiveInfo:
     url: str  # what streamlink records
     started_at: str | None = None
     live_chat_id: str | None = None  # YouTube only
+    display_name: str = ""  # how the platform spells the streamer's name
+    category: str | None = None  # game / category, when the platform reports it
 
 
 class _AppToken:
@@ -74,7 +76,8 @@ class TwitchAPI:
                 s = by_login.get(st["user_login"].lower())
                 if s:
                     out[s.key] = LiveInfo(s, st.get("title", ""), f"https://www.twitch.tv/{st['user_login']}",
-                                          st.get("started_at"))
+                                          st.get("started_at"), display_name=st.get("user_name") or s.name,
+                                          category=st.get("game_name") or None)
         return out
 
 
@@ -104,7 +107,8 @@ class KickAPI:
                 s = by_slug.get(str(ch.get("slug", "")).lower())
                 if s and stream.get("is_live"):
                     out[s.key] = LiveInfo(s, ch.get("stream_title", ""), f"https://kick.com/{ch['slug']}",
-                                          stream.get("start_time"))
+                                          stream.get("start_time"), display_name=s.name,
+                                          category=(ch.get("category") or {}).get("name") or None)
         return out
 
 
@@ -162,7 +166,9 @@ class YouTubeAPI:
                     continue
                 s = candidates[v["id"]]
                 out.setdefault(s.key, LiveInfo(s, sn.get("title", ""), f"https://www.youtube.com/watch?v={v['id']}",
-                                               lsd.get("actualStartTime"), lsd.get("activeLiveChatId")))
+                                               lsd.get("actualStartTime"), lsd.get("activeLiveChatId"),
+                                               display_name=s.name if s.name != s.channel.lstrip("@")
+                                               else sn.get("channelTitle") or s.name))
         return out
 
     async def chat_messages(self, live_chat_id: str, page_token: str | None):
