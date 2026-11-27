@@ -5,6 +5,8 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from .postforme import describe_error
+
 import discord
 
 if TYPE_CHECKING:
@@ -114,8 +116,8 @@ class ClipperBot(discord.Client):
             post_id, expected = await self.pipeline.post_clip(clip_id, caption)
         except Exception as e:  # noqa: BLE001
             log.exception("Posting clip %s failed", clip_id)
-            db.update(clip_id, status="pending", error=str(e)[:1000])
-            await msg.edit(content=f"{base}\n\n⚠️ Posting failed: `{str(e)[:300]}` — try again.",
+            db.update(clip_id, status="pending", error=describe_error(e)[:1000])
+            await msg.edit(content=f"{base}\n\n⚠️ Posting failed: `{describe_error(e)[:300]}` — try again.",
                            view=ApprovalView(self))
             return
         await msg.edit(content=f"{base}\n\n⏳ Approved by {who}. Uploaded to Post for Me (`{post_id}`), "
@@ -124,7 +126,7 @@ class ClipperBot(discord.Client):
             results = await self.pipeline.finish_post(clip_id, post_id, expected)
         except Exception as e:  # noqa: BLE001
             log.exception("Checking results for clip %s failed", clip_id)
-            results, err = [], str(e)
+            results, err = [], describe_error(e)
         else:
             err = ""
         lines = []

@@ -22,6 +22,21 @@ class PostForMeError(RuntimeError):
     pass
 
 
+API_TIMEOUT = aiohttp.ClientTimeout(total=120, sock_connect=30)
+# Uploads of 50-100 MB clips can take minutes on a home connection: no overall limit,
+# only fail if the connection stalls completely for 2 minutes.
+UPLOAD_TIMEOUT = aiohttp.ClientTimeout(total=None, sock_connect=30, sock_read=120)
+UPLOAD_ATTEMPTS = 3
+
+
+def describe_error(e: BaseException) -> str:
+    """Readable message even for exceptions whose str() is empty (timeouts, disconnects)."""
+    if isinstance(e, (asyncio.TimeoutError, TimeoutError)):
+        return "timed out talking to Post for Me (slow or interrupted internet connection?)"
+    text = str(e).strip()
+    return f"{type(e).__name__}: {text}" if text else type(e).__name__
+
+
 @dataclass
 class PostResult:
     account_id: str
@@ -44,6 +59,7 @@ class PostForMe:
         self.headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
     async def _req(self, method: str, path: str, **kw):
+        kw.setdefault("timeout", API_TIMEOUT)
         async with self.session.request(method, f"{self.base}{path}", headers=self.headers, **kw) as r:
             body = await r.text()
             if r.status >= 400:
@@ -58,13 +74,30 @@ class PostForMe:
         return j.get("data", j) if isinstance(j, dict) else j
 
     async def upload(self, path: Path) -> str:
-        j = await self._req("POST", "/v1/media/create-upload-url", json={})
-        upload_url, media_url = j["upload_url"], j["media_url"]
-        with path.open("rb") as f:
-            async with self.session.put(upload_url, data=f, headers={"Content-Type": "video/mp4"}) as r:
-                if r.status >= 400:
-                    raise PostForMeError(f"media upload failed: {r.status} {await r.text()}")
-        return media_url
+        size = path.stat().st_size
+        last: BaseException | None = None
+        for attempt in range(1, UPLOAD_ATTEMPTS + 1):
+            # fresh signed URL each attempt, since they expire quickly
+            j = await self._req("POST", "/v1/media/create-upload-url", json={})
+            upload_url, media_url = j["upload_url"], j["media_url"]
+            started = time.monotonic()
+            log.info("Uploading %s (%.1f MB), attempt %d/%d", path.name, size / 1e6, attempt, UPLOAD_ATTEMPTS)
+            try:
+                with path.open("rb") as f:
+                    async with self.session.put(upload_url, data=f, timeout=UPLOAD_TIMEOUT,
+                                                headers={"Content-Type": "video/mp4",
+                                                         "Content-Length": str(size)}) as r:
+                        if r.status >= 400:
+                            raise PostForMeError(f"media upload failed: HTTP {r.status} {(await r.text())[:300]}")
+                secs = time.monotonic() - started
+                log.info("Uploaded %s in %.0fs (%.1f Mbit/s)", path.name, secs, size * 8 / 1e6 / max(secs, 0.1))
+                return media_url
+            except (asyncio.TimeoutError, aiohttp.ClientError, PostForMeError) as e:
+                last = e
+                log.warning("Upload attempt %d failed: %s", attempt, describe_error(e))
+                if attempt < UPLOAD_ATTEMPTS:
+                    await asyncio.sleep(5 * attempt)
+        raise PostForMeError(f"upload failed after {UPLOAD_ATTEMPTS} attempts: {describe_error(last)}")
 
     async def create_post(self, caption: str, media_url: str, account_ids: list[str]) -> dict:
         return await self._req("POST", "/v1/social-posts", json={
